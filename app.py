@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict
+import json
+import os
 
 app = FastAPI()
 
@@ -13,10 +15,31 @@ class Task(BaseModel):
 # In-memory database
 tasks: Dict[int, Task] = {}
 task_id_counter = 1
+task_file = "task.json"
 
-# Create task
+# --------------------------
+# Load tasks from JSON
+# --------------------------
+def load_tasks():
+    global tasks, task_id_counter
+    if os.path.exists(task_file):
+        with open(task_file, "r") as f:
+            raw_data = json.load(f)
+            for k,v, in raw_data.items():
+                tasks[int(k)] = Task(**v)
+            if tasks:
+                task_id_counter = max(tasks.keys())+1
+
+@app.on_event("startup")
+def startup_event():
+    load_tasks()
+
+
+# --------------------------
+# CRUD Endpoints
+# --------------------------
 @app.post("/tasks")
-def create_task(task: Task) -> Dict[str, int]:
+def create_task(task: Task):
     global task_id_counter
     tasks[task_id_counter] = task
     task_id = task_id_counter
